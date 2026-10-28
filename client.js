@@ -500,6 +500,89 @@ window.__ModuleLoader__.load({
       )
     }
 
+
+    const AUTOPILOT_ROWS = [
+      ['eat', '自动进食', '饥饿值低时自己吃东西'],
+      ['defend', '被打还手', '受到伤害后反击附近敌对生物'],
+      ['flee', '低血逃跑', '血量过低时远离怪物'],
+      ['pickup', '捡掉落物', '空闲时走过去拾取附近掉落'],
+      ['respawn', '自动重生', '死亡后自动重生'],
+      ['followOwner', '跟上主人', '离得远了自动跟过去'],
+    ]
+
+    function AutopilotCard({ state, run, pending }) {
+      const autopilot = state.autopilot || {}
+      const patch = (key, value) => run('autopilot.set', { patch: { [key]: value } })
+      const last = autopilot.lastAction
+      return h('div', { className: 'mc-card' },
+        h('div', { className: 'mc-card-head' },
+          h('div', { className: 'mc-card-title' },
+            h('span', { className: 'mc-dot' + (autopilot.enabled ? ' on' : '') }),
+            '空窗自律',
+          ),
+          h('div', { className: 'mc-row' },
+            h('span', { className: 'mc-muted' }, autopilot.running ? '运行中' : '已停止'),
+            h(Switch, {
+              checked: autopilot.enabled === true,
+              disabled: pending === 'autopilot.set' || !state.enabled,
+              onChange: (next) => patch('enabled', next),
+            }),
+          ),
+        ),
+        h('div', { className: 'mc-muted', style: { marginBottom: 8 } },
+          '模型不控制时的基础反应；只吃/打/逃/捡/重生，不挖方块、不打玩家。'),
+        h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 8 } },
+          ...AUTOPILOT_ROWS.map(([key, label, hint]) =>
+            h('div', { key, style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 } },
+              h('div', null,
+                h('div', { style: { fontSize: 12 } }, label),
+                h('div', { className: 'mc-muted', style: { fontSize: 11 } }, hint),
+              ),
+              h(Switch, {
+                checked: autopilot[key] === true,
+                disabled: pending === 'autopilot.set' || autopilot.enabled !== true,
+                onChange: (next) => patch(key, next),
+              }),
+            ),
+          ),
+        ),
+        last
+          ? h('div', { className: 'mc-muted', style: { marginTop: 8 } }, `最近：${last.message}（${new Date(last.at).toLocaleTimeString()}）`)
+          : h('div', { className: 'mc-muted', style: { marginTop: 8 } }, '还没有触发过自律反应。'),
+      )
+    }
+
+    function InventoryCard({ state, run, pending }) {
+      const inventory = state.inventory
+      const online = state.bot && state.bot.online
+      const held = inventory && inventory.held
+      const counts = (inventory && inventory.counts) || {}
+      const armor = (inventory && inventory.armor) || {}
+      const armorText = Object.entries(armor).map(([slot, name]) => `${slot}:${name}`).join(' ')
+      return h('div', { className: 'mc-card' },
+        h('div', { className: 'mc-card-head' },
+          h('div', { className: 'mc-card-title' }, '背包与动作'),
+          h('div', { className: 'mc-row' },
+            h(Btn, { small: true, disabled: !online || pending === 'inventory.eat', onClick: () => run('inventory.eat') }, '吃东西'),
+            h(Btn, { small: true, disabled: !online || pending === 'inventory.equip', onClick: () => run('inventory.equip', { destination: 'hand' }) }, '拿武器'),
+            h(Btn, { small: true, disabled: !online || pending === 'inventory.equip', onClick: () => run('inventory.equip', { destination: 'head' }) }, '戴头盔'),
+          ),
+        ),
+        h('div', { className: 'mc-grid', style: { margin: '4px 0 10px' } },
+          h(Stat, { label: '手持', value: held ? `${held.name}×${held.count}` : '空手' }),
+          h(Stat, { label: '食物', value: counts.food ?? 0 }),
+          h(Stat, { label: '方块', value: counts.blocks ?? 0 }),
+          h(Stat, { label: '空位', value: inventory && inventory.freeSlots != null ? inventory.freeSlots : '?' }),
+        ),
+        armorText ? h('div', { className: 'mc-muted' }, `护甲：${armorText}`) : null,
+        h('div', { className: 'mc-row', style: { marginTop: 8 } },
+          h(Btn, { small: true, disabled: !online || pending === 'act.attack', onClick: () => run('act.attack', { radius: 4 }) }, '打最近的怪'),
+          h(Btn, { small: true, disabled: !online || pending === 'act.collect', onClick: () => run('act.collect', { radius: 8 }) }, '捡东西'),
+          h(Btn, { small: true, danger: true, disabled: !online || pending === 'act.respawn', onClick: () => run('act.respawn') }, '重生'),
+        ),
+      )
+    }
+
     function Panel() {
       const { state, error, reload } = useLive(1000)
       const [pending, setPending] = useState('')
@@ -537,6 +620,8 @@ window.__ModuleLoader__.load({
           h(Head, { state, run, pending }),
           h(ErrorLine, { text: actionError }),
           h(Hud, { state }),
+          h(AutopilotCard, { state, run, pending }),
+          h(InventoryCard, { state, run, pending }),
           h(Behaviors, { state, run, pending }),
           h(FollowCard, { state, run, pending }),
           h(ChatCard, { state, run, pending }),
