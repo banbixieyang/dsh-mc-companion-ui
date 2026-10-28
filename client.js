@@ -502,7 +502,7 @@ window.__ModuleLoader__.load({
 
 
     const AUTOPILOT_ROWS = [
-      ['eat', '自动进食', '饥饿值低时自己吃东西'],
+      ['eat', '自动进食', '饥饿≤阈值或饱食见底时吃东西'],
       ['defend', '被打还手', '受到伤害后反击附近敌对生物'],
       ['flee', '低血逃跑', '血量过低时远离怪物'],
       ['pickup', '捡掉落物', '空闲时走过去拾取附近掉落'],
@@ -531,6 +531,8 @@ window.__ModuleLoader__.load({
         ),
         h('div', { className: 'mc-muted', style: { marginBottom: 8 } },
           '模型不控制时的基础反应；只吃/打/逃/捡/重生，不挖方块、不打玩家。'),
+        h('div', { className: 'mc-muted', style: { marginBottom: 8 } },
+          `进食条件：饥饿 ≤ ${autopilot.eatThreshold ?? '?'} 或饱食度见底 —— 当前饥饿 ${state.bot?.food ?? '?'}/20，饱食 ${state.bot?.saturation ?? '?'}，背包食物 ${state.inventory?.counts?.food ?? '?'} 个`),
         h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 8 } },
           ...AUTOPILOT_ROWS.map(([key, label, hint]) =>
             h('div', { key, style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 } },
@@ -721,3 +723,4 @@ window.__ModuleLoader__.load({
     }
   },
 })
+
